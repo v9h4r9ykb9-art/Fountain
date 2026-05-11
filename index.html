@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Züri Brunnen Finder</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;700&family=Permanent+Marker&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            height: 100vh;
+            gap: 0;
+        }
+
+        .sidebar {
+            background: linear-gradient(180deg, #0d0d0d 0%, #1a1a1a 100%);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            box-shadow: 8px 0 30px rgba(0, 0, 0, 0.8);
+            position: relative;
+            border-right: 3px solid #ff006e;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        .sidebar::before {
+            content: "ZÜRI";
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-family: 'Permanent Marker', cursive;
+            font-size: 24px;
+            color: rgba(255, 0, 110, 0.3);
+            transform: rotate(15deg);
+            z-index: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #ff006e;
+            letter-spacing: -1px;
+            font-family: 'Fredoka', sans-serif;
+            text-shadow: 2px 2px 0px rgba(255, 0, 110, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        button {
+            flex: 1;
+            padding: 13px 16px;
+            border: 2px solid #ff006e;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-family: 'Fredoka', sans-serif;
+            background: transparent;
+            color: #ff006e;
+            text-shadow: 0 0 10px rgba(255, 0, 110, 0.5);
+        }
+
+        button:hover {
+            background: #ff006e;
+            color: #1a1a1a;
+            text-shadow: none;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 0, 110, 0.6);
+        }
+
+        .btn-locate {
+            background: #ff006e;
+            color: #1a1a1a;
+            text-shadow: none;
+            border: 2px solid #ff006e;
+        }
+
+        .btn-locate:hover {
+            background: #ff1493;
+            border-color: #ff1493;
+        }
+
+        .btn-clear {
+            border: 2px solid #00d9ff;
+            color: #00d9ff;
+            text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+        }
+
+        .btn-clear:hover {
+            background: #00d9ff;
+            color: #1a1a1a;
+            text-shadow: none;
+            box-shadow: 0 8px 20px rgba(0, 217, 255, 0.6);
+        }
+
+        .status {
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 12px;
+            animation: fadeIn 0.5s ease;
+            position: relative;
+            z-index: 1;
+            border-left: 4px solid #ff006e;
+            background: rgba(255, 0, 110, 0.1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .status.loading {
+            border-left-color: #00d9ff;
+            background: rgba(0, 217, 255, 0.1);
+        }
+
+        .status.success {
+            border-left-color: #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .status.error {
+            border-left-color: #ff4444;
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .fountain-card {
+            background: linear-gradient(135deg, rgba(255, 0, 110, 0.15) 0%, rgba(0, 217, 255, 0.15) 100%);
+            border: 2px solid #ff006e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            animation: cardSlide 0.6s ease-out;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 0 20px rgba(255, 0, 110, 0.3);
+        }
+
+        .fountain-card::before {
+            content: "★";
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 20px;
+            color: #ff006e;
+            opacity: 0.6;
+        }
+
+        @keyframes cardSlide {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .fountain-name {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #ff006e;
+        }
+
+        .fountain-distance {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            letter-spacing: -1px;
+            color: #00d9ff;
+        }
+
+        .fountain-distance-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        .fountain-details {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 0, 110, 0.3);
+            font-size: 12px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: #aaa;
+        }
+
+        .detail-value {
+            color: #00d9ff;
+            font-weight: 600;
+        }
+
+        .nav-button {
+            width: 100%;
+            padding: 14px;
+            background: #ff006e;
+            color: #1a1a1a;
+            border: 2px solid #ff006e;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-size: 13px;
+            font-family: 'Fredoka', sans-serif;
+            position: relative;
+            z-index: 1;
+        }
+
+        .nav-button:hover {
+            background: #ff1493;
+            border-color: #ff1493;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 0, 110, 0.6);
+        }
+
+        .map-container {
+            position: relative;
+            background: #0a0a0a;
+            overflow: hidden;
+        }
+
+        .map-container::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(255, 0, 110, 0.03) 1px,
+                    transparent 1px,
+                    transparent 2px
+                );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #666;
+            position: relative;
+            z-index: 1;
+        }
+
+        .empty-state-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .empty-state-text {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #888;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+
+            .sidebar {
+                max-height: 45vh;
+                order: 2;
+                border-radius: 16px 16px 0 0;
+                border-right: none;
+                border-top: 3px solid #ff006e;
+            }
+
+            .map-container {
+                order: 1;
+            }
+        }
+
+        .loader {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 0, 110, 0.3);
+            border-radius: 50%;
+            border-top-color: #ff006e;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .leaflet-popup-content {
+            font-family: 'Fredoka', sans-serif;
+            color: #1a1a1a;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: #1a1a1a;
+            color: #fff;
+            border: 2px solid #ff006e;
+            border-radius: 8px;
+        }
+
+        .leaflet-popup-tip {
+            background: #1a1a1a;
+            border-left: 2px solid #ff006e;
+            border-right: 2px solid #ff006e;
+        }
+
+        .leaflet-control-zoom {
+            border: 2px solid #ff006e !important;
+            border-radius: 8px !important;
+        }
+
+        .leaflet-control-zoom a {
+            background: #1a1a1a !important;
+            color: #ff006e !important;
+            border-bottom: 2px solid #ff006e !important;
+            font-weight: bold;
+        }
+
+        .leaflet-control-zoom a:hover {
+            background: #ff006e !important;
+            color: #1a1a1a !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="logo">🚰 ZÜRI BRUNNE</div>
+            <div class="subtitle">Finder</div>
+
+            <div class="button-group">
+                <button class="btn-locate" id="locateBtn">Nähe Brunne</button>
+                <button class="btn-clear" id="clearBtn">Zurücksetze</button>
+            </div>
+
+            <div id="status"></div>
+
+            <div id="fountainInfo">
+                <div class="empty-state">
+                    <div class="empty-state-icon">💧</div>
+                    <div class="empty-state-text">
+                        Tipp "Nähe Brunne" zum nächschte Brunne finde
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let fountains = [];
+        let userMarker;
+        let nearestMarker;
+
+        const ZURICH_FOUNTAINS = [
+            { name: "Bahnhofplatz Brunne", lat: 47.378, lng: 8.541, type: "public" },
+            { name: "Paradeplatz Brunne", lat: 47.371, lng: 8.496, type: "public" },
+            { name: "Münsterplatz Brunne", lat: 47.366, lng: 8.495, type: "public" },
+            { name: "Lindenhof Brunne", lat: 47.368, lng: 8.489, type: "public" },
+            { name: "Bürkliplatz Brunne", lat: 47.362, lng: 8.539, type: "public" },
+            { name: "Stauffacher Brunne", lat: 47.373, lng: 8.517, type: "public" },
+            { name: "Bellevue Brunne", lat: 47.363, lng: 8.535, type: "public" },
+            { name: "Kappelergasse Brunne", lat: 47.373, lng: 8.498, type: "public" },
+            { name: "Rathausbrücke Brunne", lat: 47.369, lng: 8.493, type: "public" },
+            { name: "Sihlfeld Brunne", lat: 47.351, lng: 8.514, type: "public" },
+            { name: "Werdmühleplatz Brunne", lat: 47.368, lng: 8.485, type: "public" },
+            { name: "Sechseläutenplatz Brunne", lat: 47.375, lng: 8.504, type: "public" },
+            { name: "Zurich HB Ost Brunne", lat: 47.378, lng: 8.545, type: "public" },
+            { name: "Seefeldquai Brunne", lat: 47.368, lng: 8.558, type: "public" },
+            { name: "Kreuzplatz Brunne", lat: 47.325, lng: 8.572, type: "public" },
+            { name: "Limmatplatz Brunne", lat: 47.367, lng: 8.487, type: "public" },
+            { name: "Helvetiaplatz Brunne", lat: 47.347, lng: 8.522, type: "public" },
+            { name: "Wiedikon Brunne", lat: 47.342, lng: 8.525, type: "public" }
+        ];
+
+        function initMap() {
+            map = L.map('map').setView([47.3769, 8.5472], 13);
+            
+            L.tileLayer('https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+
+            loadFountains();
+        }
+
+        function loadFountains() {
+            fountains = ZURICH_FOUNTAINS;
+            
+            fountains.forEach(fountain => {
+                L.circleMarker([fountain.lat, fountain.lng], {
+                    radius: 7,
+                    fillColor: '#00d9ff',
+                    color: '#ff006e',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.7
+                }).bindPopup(`<b style="color: #ff006e;">${fountain.name}</b>`).addTo(map);
+            });
+
+            showStatus('✓ ' + fountains.length + ' Brunne glade!', 'success');
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function findNearest(userLat, userLng) {
+            if (fountains.length === 0) {
+                showStatus('Kei Brunne gfunde :(', 'error');
+                return null;
+            }
+
+            let nearest = fountains[0];
+            let minDistance = calculateDistance(userLat, userLng, nearest.lat, nearest.lng);
+
+            fountains.forEach(fountain => {
+                const distance = calculateDistance(userLat, userLng, fountain.lat, fountain.lng);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearest = fountain;
+                }
+            });
+
+            nearest.distance = minDistance;
+            return nearest;
+        }
+
+        function displayFountainInfo(fountain, distance) {
+            const distanceM = (distance * 1000).toFixed(0);
+            const distanceMinutes = Math.ceil(distance / 0.004);
+
+            let html = `
+                <div class="fountain-card">
+                    <div class="fountain-name">${fountain.name}</div>
+                    <div class="fountain-distance">${distance.toFixed(2)} km</div>
+                    <div class="fountain-distance-label">Di Nächschte isch hie</div>
+                    <div class="fountain-details">
+                        <div class="detail-row">
+                            <span>Distanz:</span>
+                            <span class="detail-value">${distanceM}m</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Zu Fuess:</span>
+                            <span class="detail-value">~${distanceMinutes} min</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="nav-button" id="navBtn">🗺️ Navigatione</button>
+            `;
+
+            document.getElementById('fountainInfo').innerHTML = html;
+
+            document.getElementById('navBtn').addEventListener('click', () => {
+                openNavigation(fountain);
+            });
+        }
+
+        function openNavigation(fountain) {
+            if (!userMarker) return;
+
+            const userLat = userMarker.getLatLng().lat;
+            const userLng = userMarker.getLatLng().lng;
+
+            const appleMapsUrl = `maps://maps.apple.com/?address=${encodeURIComponent(fountain.name)}&saddr=${userLat},${userLng}&daddr=${fountain.lat},${fountain.lng}`;
+            const googleMapsUrl = `https://maps.google.com/?saddr=${userLat},${userLng}&daddr=${fountain.lat},${fountain.lng}&travelmode=walking`;
+
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            
+            if (isIOS) {
+                window.location.href = appleMapsUrl;
+                setTimeout(() => {
+                    window.location.href = googleMapsUrl;
+                }, 500);
+            } else {
+                window.open(googleMapsUrl, '_blank');
+            }
+
+            showStatus('✓ Navigatione öffnet...', 'success');
+        }
+
+        document.getElementById('locateBtn').addEventListener('click', () => {
+            showStatus('<span class="loader"></span>Findet di...', 'loading');
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+
+                        if (userMarker) map.removeLayer(userMarker);
+                        if (nearestMarker) map.removeLayer(nearestMarker);
+
+                        userMarker = L.circleMarker([lat, lng], {
+                            radius: 10,
+                            fillColor: '#ff006e',
+                            color: '#ff1493',
+                            weight: 3,
+                            opacity: 1,
+                            fillOpacity: 1
+                        }).addTo(map);
+                        userMarker.bindPopup('<b style="color: #ff006e;">Du bisch da!</b>');
+
+                        const nearest = findNearest(lat, lng);
+                        if (nearest) {
+                            displayFountainInfo(nearest, nearest.distance);
+                            
+                            nearestMarker = L.circleMarker([nearest.lat, nearest.lng], {
+                                radius: 12,
+                                fillColor: '#ffff00',
+                                color: '#ff006e',
+                                weight: 3,
+                                opacity: 1,
+                                fillOpacity: 0.9
+                            }).addTo(map);
+                            nearestMarker.bindPopup(`<b style="color: #ff006e;">${nearest.name}</b><br><span style="color: #00d9ff;">${nearest.distance.toFixed(2)} km weg</span>`).openPopup();
+
+                            const group = new L.featureGroup([userMarker, nearestMarker]);
+                            map.fitBounds(group.getBounds(), { padding: [100, 100] });
+
+                            showStatus(`✓ Gfunde! ${nearest.name} isch ${nearest.distance.toFixed(2)} km weg`, 'success');
+                        }
+                    },
+                    (error) => {
+                        showStatus('Konnt di Location nid finde. Aktivier dini Lokatione-Dienscht.', 'error');
+                    }
+                );
+            } else {
+                showStatus('Geolocation nicht unterstützt', 'error');
+            }
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            if (userMarker) map.removeLayer(userMarker);
+            if (nearestMarker) map.removeLayer(nearestMarker);
+            
+            document.getElementById('fountainInfo').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">💧</div>
+                    <div class="empty-state-text">
+                        Tipp "Nähe Brunne" zum nächschte Brunne finde
+                    </div>
+                </div>
+            `;
+            showStatus('↻ Zrugggsetzt', 'success');
+        });
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status ' + type;
+            statusEl.innerHTML = message;
+        }
+
+        window.addEventListener('load', initMap);
+    </script>
+</body>
+</html>
